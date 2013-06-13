@@ -13,13 +13,23 @@ namespace TokenType
 
 namespace TokenSubtype
 {
-    const int states = 0;
+    const int states       = 0;
+    const int input        = 1;
+    const int output       = 2;
+    const int switchType   = 3;
+    const int state        = 4;
+    const int signal       = 5;
+    const int ifType       = 6;
+    const int transitto    = 7;
     
-    const int start  = 100;
-    const int end    = 101;
-    const int comma  = 102;
+    const int start        = 100;
+    const int end          = 101;
+    const int comma        = 102;
+    const int leftBracket  = 103;
+    const int rightBracket = 104;
+    const int colon        = 105;
     
-    const int name   = 200;
+    const int name         = 200;
 };
 
 struct Key

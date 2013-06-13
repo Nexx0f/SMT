@@ -6,10 +6,21 @@ Tokeniser::Tokeniser()
 {
     dump = false;
  
-    keysData.pushKey ({TokenType::keyword, TokenSubtype::states, "States",         "states"});
-    keysData.pushKey ({TokenType::divider, TokenSubtype::comma,  "Comma",          ","});
-    keysData.pushKey ({TokenType::divider, TokenSubtype::start,  "Start of block", "{"});
-    keysData.pushKey ({TokenType::divider, TokenSubtype::end,    "End of block",   "}"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::states,       "States",         "states"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::input,        "Input",          "input"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::output,       "Output",         "output"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::switchType,   "Switch",         "switch"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::state,        "State",          "state"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::signal,       "Signal",         "signal"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::ifType,       "If",             "if"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::transitto,    "Transitto",      "transitto"});
+    
+    keysData.pushKey ({TokenType::divider, TokenSubtype::comma,        "Comma",          ","});
+    keysData.pushKey ({TokenType::divider, TokenSubtype::start,        "Start of block", "{"});
+    keysData.pushKey ({TokenType::divider, TokenSubtype::end,          "End of block",   "}"});
+    keysData.pushKey ({TokenType::divider, TokenSubtype::leftBracket,  "Left bracket",   "("});
+    keysData.pushKey ({TokenType::divider, TokenSubtype::rightBracket, "Right bracket",  ")"});
+    keysData.pushKey ({TokenType::divider, TokenSubtype::colon,        "Colon",          ";"});
 }
 
 bool Tokeniser::SetTokeniser (const char* fileName, bool newDump)
@@ -27,7 +38,9 @@ bool Tokeniser::Tokenise()
     {
         char newString [MAX_TOKEN_LENGTH] = "";
         
-        while (currentSymbol == ' ' || currentSymbol == 10)
+        while (currentSymbol == ' ' || 
+               currentSymbol == 10  || // Vertical tab
+               currentSymbol == 9)     // Horisontal tab
         {
                fscanf (inputFile, "%c", &currentSymbol);
                if (feof(inputFile)) break;
@@ -45,7 +58,8 @@ bool Tokeniser::Tokenise()
             for (int i = 0; 
                  !keysData.isDivider(currentSymbol) &&
                  currentSymbol != ' ' &&
-                 currentSymbol != 10;
+                 currentSymbol != 10  && // Vertical tab
+                 currentSymbol != 9;     // Horisontal tab
                  i++)
             {
                 newString [i] = currentSymbol;
