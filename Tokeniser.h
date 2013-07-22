@@ -10,6 +10,7 @@
 const int MAX_TOKEN_LENGTH = 256;
 class Tokeniser
 {
+public:    
     std::vector <Token*> tokensBuffer;
     KeysData             keysData;
     FILE*                inputFile;

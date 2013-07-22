@@ -7,8 +7,8 @@ Tokeniser::Tokeniser()
     dump = false;
  
     keysData.pushKey ({TokenType::keyword, TokenSubtype::states,       "States",         "states"});
-    keysData.pushKey ({TokenType::keyword, TokenSubtype::input,        "Input",          "input"});
-    keysData.pushKey ({TokenType::keyword, TokenSubtype::output,       "Output",         "output"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::inputs,        "Inputs",         "inputs"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::outputs,       "Outputs",        "outputs"});
     keysData.pushKey ({TokenType::keyword, TokenSubtype::switchType,   "Switch",         "switch"});
     keysData.pushKey ({TokenType::keyword, TokenSubtype::state,        "State",          "state"});
     keysData.pushKey ({TokenType::keyword, TokenSubtype::signal,       "Signal",         "signal"});

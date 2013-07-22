@@ -14,8 +14,8 @@ namespace TokenType
 namespace TokenSubtype
 {
     const int states       = 0;
-    const int input        = 1;
-    const int output       = 2;
+    const int inputs        = 1;
+    const int outputs       = 2;
     const int switchType   = 3;
     const int state        = 4;
     const int signal       = 5;
@@ -44,6 +44,8 @@ class KeysData
 {
 public:
     std::map <std::string, Key> data;
+    /* Key - str (In this string the name of token
+     * that you can find in parsing code */
     
 public:
          KeysData  ();

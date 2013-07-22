@@ -1,4 +1,4 @@
 project(smt)
 
-add_executable(smt main.cpp Tokeniser.cpp Tokens.cpp)
+add_executable(smt main.cpp Tokeniser.cpp Tokens.cpp Translator.cpp)
 
