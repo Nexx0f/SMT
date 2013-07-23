@@ -17,13 +17,17 @@ class Translator
     void SetTranslator       (Tokeniser* newTokeniser, bool newDump);
     
     bool CheckCurrentToken   (int type, int subtype);
+    bool CheckName           (Token *token, const char* only, std::vector <std::string>* list);
     bool ParsingError        (const char* expected);
     
     bool Translate           (FILE* output);
     bool TranslateMainBlocks (FILE* output);
+    
     bool ReadList            (const char* only, const char* multiple, std::vector <std::string>* list);
+    
     bool States              ();
     bool Inputs              ();
     bool Outputs             ();
     bool Switch              (FILE* output);
+    bool State               (FILE* output);
 };
