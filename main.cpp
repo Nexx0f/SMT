@@ -10,5 +10,8 @@ int main(int argc, char **argv)
     
     Translator translator;
     translator.SetTranslator (&t, true);
-    translator.Translate (NULL);
+    
+    FILE* output = fopen ("output.txt", "w");
+    translator.Translate (output);
+    fclose (output);
 }
