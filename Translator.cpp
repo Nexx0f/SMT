@@ -46,7 +46,12 @@ bool Translator::TranslateMainBlocks(FILE* output, int deep)
         if (CheckCurrentToken (TokenType::keyword, TokenSubtype::state))
         {
             if (!State (output, deep)) return false;
-        }    
+        }
+        else
+        if (CheckCurrentToken (TokenType::keyword, TokenSubtype::ifType))
+        {
+            if (!IfBlock (output, deep)) return false;
+        }
         else
         if (CheckCurrentToken (TokenType::divider, TokenSubtype::end))
         {
@@ -141,10 +146,10 @@ bool Translator::Switch (FILE* output, int deep)
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::start)) currentToken++;
     else return ParsingError ("{");
     
-    /*There is a start of translating main swith
-      to verilog's module. It contains prototype
-      of module, <state> variable initialisation, and begin
-      of "always" block*/
+    /* There is a start of translating main swith
+       to verilog's module. It contains prototype
+       of module, <state> variable initialisation, and begin
+       of "always" block */
     
     SkipSpaces (output, deep);
     fprintf (output, "module state_machine (");
@@ -181,8 +186,8 @@ bool Translator::Switch (FILE* output, int deep)
     if (dump) printf (")\n");
     fprintf (output, ");\n\n");
     
-    /*Prototype of module was generated.
-      Now initialisation of <state> variable*/
+    /* Prototype of module was generated.
+       Now initialisation of <state> variable */
     
     SkipSpaces (output, deep);
     fprintf (output, "reg [%d:0] state = 1;\n\n", states.size() - 1);
@@ -191,8 +196,8 @@ bool Translator::Switch (FILE* output, int deep)
                       "It means that state variable will have %d bits.\n", 
                       states.size(), states.size());
     
-    /*<state> varianle was initialised.
-      Now begin of always block.*/
+    /* <state> varianle was initialised.
+       Now begin of always block. */
     
     SkipSpaces (output, deep);
     fprintf (output, "always @("); 
@@ -214,16 +219,16 @@ bool Translator::Switch (FILE* output, int deep)
     if (dump) printf ("Always block was inialised.\n"
                       "Recursive call of blocks translate function...\n");
     
-    /*Begin of always block was written.
-      Now recursive all of function <TranslateMainBlocks>.
-      It have to read and translate all
-      that switch contains*/
+    /* Begin of always block was written.
+       Now recursive all of function <TranslateMainBlocks>.
+       It have to read and translate all
+       that switch contains */
     
     if (!TranslateMainBlocks(output, deep + 4)) return false;
     
-    /*There is end of generating file.
-      It contains end of always block and
-      <endmodule> keyword*/
+    /* There is end of generating file.
+       It contains end of always block and
+       <endmodule> keyword */
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::end)) currentToken++;
     else return ParsingError ("}");
@@ -254,11 +259,11 @@ bool Translator::State (FILE* output, int deep)
 {
     currentToken++;
     
-    /*There is a conditional block which
-      calls when state machine is on defined
-      state. First we have to read name of state,
-      find it's number and then translate it
-      to the <if> block in verilog code*/
+    /* There is a conditional block which
+       executes when state machine is on defined
+       state. First we have to read name of state,
+       find it's number and then translate it
+       to the <if> block in verilog code */
     
     if (dump) printf ("Begin to read state block\n");
     
@@ -286,15 +291,15 @@ bool Translator::State (FILE* output, int deep)
     
     if (dump) printf ("Recursive call of blocks translate function...\n");
     
-    /*Begin of if block was written.
-      Now recursive all of function <TranslateMainBlocks>.
-      It have to read and translate all
-      that state block contains*/
+    /* Begin of if block was written.
+       Now recursive all of function <TranslateMainBlocks>.
+       It have to read and translate all
+       that state block contains */
     
     if (!TranslateMainBlocks(output, deep + 4)) return false;
     
-    /*There is end of if block.
-      It contains end keyword*/
+    /* There is end of if block.
+       It contains end keyword */
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::end)) currentToken++;
     else return ParsingError ("}");
@@ -316,4 +321,50 @@ bool Translator::State (FILE* output, int deep)
                       "Writing end of if block to output file...\n\n\n");
     
     return true;
+}
+
+bool Translator::IfBlock(FILE *output, int deep)
+{
+    currentToken++;
+    
+    /* This is a conditional block which 
+       executes when defined input
+       has high level. This block translates
+       to the <if> block in verilog */
+    
+    if (dump) printf ("Begin to read if block\n");
+    
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::leftBracket)) currentToken++;
+    else return ParsingError ("(");
+    
+    if (!CheckName (tokeniser -> tokensBuffer [currentToken], "input", &inputs))
+        return false;
+    
+    SkipSpaces (output, deep);
+    fprintf    (output, "if (%s", tokeniser -> tokensBuffer [currentToken] -> name.c_str());
+    currentToken++;
+
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::rightBracket)) currentToken++;
+    else return ParsingError (")");
+    fprintf (output, ")\n");
+    
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::start)) currentToken++;
+    else return ParsingError ("{");
+    SkipSpaces (output, deep);
+    fprintf    (output, "begin\n");
+    
+    /* Begin of if block was written.
+       Now recursive all of function <TranslateMainBlocks>.
+       It have to read and translate all
+       that state block contains */
+    
+    TranslateMainBlocks (output, deep + 4);
+    
+    /* There is end of if block.
+       It contains end keyword */
+    
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::end)) currentToken++;
+    else return ParsingError ("}");
+    SkipSpaces (output, deep);
+    fprintf    (output, "end\n");
 }

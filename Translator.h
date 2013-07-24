@@ -31,5 +31,5 @@ class Translator
     bool Outputs             ();
     bool Switch              (FILE* output, int deep);
     bool State               (FILE* output, int deep);
-    
+    bool IfBlock             (FILE* output, int deep);
 };
