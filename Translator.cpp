@@ -53,6 +53,11 @@ bool Translator::TranslateMainBlocks(FILE* output, int deep)
             if (!IfBlock (output, deep)) return false;
         }
         else
+        if (CheckCurrentToken (TokenType::keyword, TokenSubtype::signal))
+        {
+            if (!Signal (output, deep)) return false;
+        }
+        else
         if (CheckCurrentToken (TokenType::divider, TokenSubtype::end))
         {
             return true;
@@ -358,7 +363,7 @@ bool Translator::IfBlock(FILE *output, int deep)
        It have to read and translate all
        that state block contains */
     
-    TranslateMainBlocks (output, deep + 4);
+    if (!TranslateMainBlocks(output, deep + 4)) return false;
     
     /* There is end of if block.
        It contains end keyword */
@@ -367,4 +372,25 @@ bool Translator::IfBlock(FILE *output, int deep)
     else return ParsingError ("}");
     SkipSpaces (output, deep);
     fprintf    (output, "end\n");
+    
+    return true;
+}
+
+bool Translator::Signal (FILE* output, int deep)
+{
+    currentToken++;
+    
+    if (dump) printf ("Begin to read signal\n");
+    
+    if (!CheckName (tokeniser -> tokensBuffer [currentToken], "output", &outputs))
+        return false;
+    
+    SkipSpaces (output, deep);
+    fprintf    (output, "%s = 1;\n", tokeniser -> tokensBuffer [currentToken] -> name.c_str());
+    currentToken++;
+    
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
+    else return ParsingError (";");
+    
+    return true;
 }
