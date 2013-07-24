@@ -12,11 +12,12 @@ void Translator::SetTranslator(Tokeniser* newTokeniser, bool newDump)
 bool Translator::Translate(FILE* output)
 {
     currentToken = 0;
+    int deep = 0;
     
-    return TranslateMainBlocks (output);
+    return TranslateMainBlocks (output, deep);
 }
 
-bool Translator::TranslateMainBlocks(FILE* output)
+bool Translator::TranslateMainBlocks(FILE* output, int deep)
 {
     int tokensBufferSize = tokeniser -> tokensBuffer.size();
     
@@ -39,12 +40,12 @@ bool Translator::TranslateMainBlocks(FILE* output)
         else
         if (CheckCurrentToken (TokenType::keyword, TokenSubtype::switchType))
         {
-            if (!Switch (output)) return false;
+            if (!Switch (output, deep)) return false;
         }
         else
         if (CheckCurrentToken (TokenType::keyword, TokenSubtype::state))
         {
-            if (!State (output)) return false;
+            if (!State (output, deep)) return false;
         }    
         else
         if (CheckCurrentToken (TokenType::divider, TokenSubtype::end))
@@ -127,7 +128,12 @@ bool Translator::Outputs()
     return ReadList ("output", "outputs", &outputs);
 }
 
-bool Translator::Switch(FILE* output)
+void Translator::SkipSpaces (FILE* output, int deep)
+{
+    for (int i = 0; i < deep; i++) fprintf (output, " ");
+}
+
+bool Translator::Switch (FILE* output, int deep)
 {
     currentToken++;
     if (dump) printf ("Begin to read switch\n");
@@ -140,6 +146,7 @@ bool Translator::Switch(FILE* output)
       of module, <state> variable initialisation, and begin
       of "always" block*/
     
+    SkipSpaces (output, deep);
     fprintf (output, "module state_machine (");
     
     if (dump) printf ("Translating inputs...  (");
@@ -148,7 +155,7 @@ bool Translator::Switch(FILE* output)
     for (int i = 0; i < inputs.size(); i++)
     {
         fprintf (output, "input  %s,\n", inputs [i].c_str());
-        for (int i = 0; i < space; i++) fprintf (output, " "); 
+        SkipSpaces (output, deep + space); 
             
         if (dump) printf  ("%s", inputs [i].c_str());
         if (i != inputs.size() - 1) 
@@ -163,7 +170,7 @@ bool Translator::Switch(FILE* output)
         if (i != outputs.size() - 1)
         {
             fprintf (output, ",\n");
-            for (int i = 0; i < space; i++) fprintf (output, " ");
+            SkipSpaces (output, deep + space); 
         }
         
         if (dump) printf  ("%s", outputs [i].c_str());
@@ -177,6 +184,7 @@ bool Translator::Switch(FILE* output)
     /*Prototype of module was generated.
       Now initialisation of <state> variable*/
     
+    SkipSpaces (output, deep);
     fprintf (output, "reg [%d:0] state = 1;\n\n", states.size() - 1);
     if (dump) printf ("State variable was initialised. "
                       "State machine has %d states. "
@@ -186,6 +194,7 @@ bool Translator::Switch(FILE* output)
     /*<state> varianle was initialised.
       Now begin of always block.*/
     
+    SkipSpaces (output, deep);
     fprintf (output, "always @("); 
     
     int secondSpace = strlen ("always @(");
@@ -195,11 +204,12 @@ bool Translator::Switch(FILE* output)
         if (i != inputs.size() - 1)
         {
             fprintf (output, " or\n");
-            for (int i = 0; i < secondSpace; i++)
-                 fprintf (output, " ");
+            SkipSpaces (output, deep + secondSpace);
         }
     }
-    fprintf (output, ")\nbegin\n");
+    fprintf (output, ")\n");
+    SkipSpaces (output, deep);
+    fprintf (output, "begin\n");
     
     if (dump) printf ("Always block was inialised.\n"
                       "Recursive call of blocks translate function...\n");
@@ -209,7 +219,7 @@ bool Translator::Switch(FILE* output)
       It have to read and translate all
       that switch contains*/
     
-    if (!TranslateMainBlocks(output)) return false;
+    if (!TranslateMainBlocks(output, deep + 4)) return false;
     
     /*There is end of generating file.
       It contains end of always block and
@@ -218,7 +228,10 @@ bool Translator::Switch(FILE* output)
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::end)) currentToken++;
     else return ParsingError ("}");
     
-    fprintf (output, "end\n\nendmodule");
+    SkipSpaces (output, deep);
+    fprintf (output, "end\n\n");
+    SkipSpaces (output, deep);
+    fprintf (output, "endmodule");
     if (dump) printf ("Blocks translate function ended it's work\n"
                       "Writing end of always block and <endmodule> keyword to output file...\n\n\n"
                       "Switch DONE\n\n");
@@ -237,7 +250,7 @@ bool Translator::CheckName (Token* token, const char* only, std::vector <std::st
     return false;
 }
 
-bool Translator::State (FILE* output)
+bool Translator::State (FILE* output, int deep)
 {
     currentToken++;
     
@@ -257,7 +270,8 @@ bool Translator::State (FILE* output)
          if (tokeniser -> tokensBuffer [currentToken] -> name == states [i])
              stateNumber = i;
          
-    fprintf (output, "    if (state [%d] == 1)\n", stateNumber);     
+    SkipSpaces (output, deep);     
+    fprintf (output, "if (state [%d] == 1)\n", stateNumber);     
     if (dump) printf ("<If> block (<state> block in smt language) was initialised\n"
                       "Number of bit that equals <%s> state is %d\n",
                       tokeniser -> tokensBuffer [currentToken] -> name.c_str(), stateNumber);
@@ -267,7 +281,8 @@ bool Translator::State (FILE* output)
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::start)) currentToken++;
     else return ParsingError ("{");
     
-    fprintf (output, "    begin\n");
+    SkipSpaces (output, deep);
+    fprintf (output, "begin\n");
     
     if (dump) printf ("Recursive call of blocks translate function...\n");
     
@@ -276,7 +291,7 @@ bool Translator::State (FILE* output)
       It have to read and translate all
       that state block contains*/
     
-    if (!TranslateMainBlocks(output)) return false;
+    if (!TranslateMainBlocks(output, deep + 4)) return false;
     
     /*There is end of if block.
       It contains end keyword*/
@@ -284,9 +299,18 @@ bool Translator::State (FILE* output)
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::end)) currentToken++;
     else return ParsingError ("}");
     
-    if (CheckCurrentToken (TokenType::keyword, TokenSubtype::state)) fprintf (output, "    end\n"
-                                                                                      "    else\n");
-    else                                                             fprintf (output, "    end\n");
+    if (CheckCurrentToken (TokenType::keyword, TokenSubtype::state)) 
+    {
+        SkipSpaces (output, deep);
+        fprintf (output, "end\n");
+        SkipSpaces (output, deep);
+        fprintf (output, "else\n");
+    }
+    else 
+    {
+        SkipSpaces (output, deep);
+        fprintf (output, "end\n");
+    }
         
     if (dump) printf ("Blocks translate function ended it's work\n"
                       "Writing end of if block to output file...\n\n\n");

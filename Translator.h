@@ -19,15 +19,17 @@ class Translator
     bool CheckCurrentToken   (int type, int subtype);
     bool CheckName           (Token *token, const char* only, std::vector <std::string>* list);
     bool ParsingError        (const char* expected);
+    void SkipSpaces          (FILE* output, int deep);
     
     bool Translate           (FILE* output);
-    bool TranslateMainBlocks (FILE* output);
+    bool TranslateMainBlocks (FILE* output, int deep);
     
     bool ReadList            (const char* only, const char* multiple, std::vector <std::string>* list);
     
     bool States              ();
     bool Inputs              ();
     bool Outputs             ();
-    bool Switch              (FILE* output);
-    bool State               (FILE* output);
+    bool Switch              (FILE* output, int deep);
+    bool State               (FILE* output, int deep);
+    
 };
