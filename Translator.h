@@ -6,6 +6,7 @@ class Translator
     bool       dump;
     
     int        currentToken;
+    int        currentParsingState;
     
     std::vector <std::string> states;
     std::vector <std::string> inputs;
@@ -33,4 +34,5 @@ class Translator
     bool State               (FILE* output, int deep);
     bool IfBlock             (FILE* output, int deep);
     bool Signal              (FILE* output, int deep);
+    bool Transitto           (FILE* output, int deep);
 };

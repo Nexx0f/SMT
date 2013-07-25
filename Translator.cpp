@@ -2,6 +2,9 @@
 
 Translator::Translator ()
 {
+    dump = false;
+    currentParsingState = 0;
+    currentToken        = 0;
 }
 
 void Translator::SetTranslator(Tokeniser* newTokeniser, bool newDump)
@@ -12,6 +15,7 @@ void Translator::SetTranslator(Tokeniser* newTokeniser, bool newDump)
 bool Translator::Translate(FILE* output)
 {
     currentToken = 0;
+    currentParsingState = 0;
     int deep = 0;
     
     return TranslateMainBlocks (output, deep);
@@ -56,6 +60,11 @@ bool Translator::TranslateMainBlocks(FILE* output, int deep)
         if (CheckCurrentToken (TokenType::keyword, TokenSubtype::signal))
         {
             if (!Signal (output, deep)) return false;
+        }
+        else
+        if (CheckCurrentToken (TokenType::keyword, TokenSubtype::transitto))
+        {
+            if (!Transitto (output, deep)) return false;
         }
         else
         if (CheckCurrentToken (TokenType::divider, TokenSubtype::end))
@@ -176,7 +185,7 @@ bool Translator::Switch (FILE* output, int deep)
     
     for (int i = 0; i < outputs.size(); i++)
     {
-        fprintf (output, "output %s", outputs [i].c_str());
+        fprintf (output, "output reg %s", outputs [i].c_str());
         if (i != outputs.size() - 1)
         {
             fprintf (output, ",\n");
@@ -279,6 +288,7 @@ bool Translator::State (FILE* output, int deep)
     for (int i = 0; i < states.size(); i++)
          if (tokeniser -> tokensBuffer [currentToken] -> name == states [i])
              stateNumber = i;
+    currentParsingState = stateNumber;
          
     SkipSpaces (output, deep);     
     fprintf (output, "if (state [%d] == 1)\n", stateNumber);     
@@ -380,6 +390,10 @@ bool Translator::Signal (FILE* output, int deep)
 {
     currentToken++;
     
+    /* This is a <signal> command which 
+       assigns defined output to high level.
+       It translates to assignment in verilog */
+    
     if (dump) printf ("Begin to read signal\n");
     
     if (!CheckName (tokeniser -> tokensBuffer [currentToken], "output", &outputs))
@@ -387,6 +401,53 @@ bool Translator::Signal (FILE* output, int deep)
     
     SkipSpaces (output, deep);
     fprintf    (output, "%s = 1;\n", tokeniser -> tokensBuffer [currentToken] -> name.c_str());
+    currentToken++;
+    
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
+    else return ParsingError (";");
+    
+    return true;
+}
+
+bool Translator::Transitto (FILE* output, int deep)
+{
+    currentToken++;
+    
+    /* This is a <transitto> command which 
+       transits state machine to the defined.
+       state. It translates to some assignments
+       in verilog */
+    
+    if (dump) printf ("Begin to read transitto\n");
+    
+    if (!CheckName (tokeniser -> tokensBuffer [currentToken], "state", &states))
+        return false;
+    
+    /* Before transition all output signals 
+       have to be in low level. It may be changed
+       in future. */
+    
+    for (int i = 0; i < outputs.size(); i++)
+    {
+        SkipSpaces (output, deep);
+        fprintf    (output, "%s = 0;\n", outputs [i].c_str());
+    }
+    
+    /* Then last state's bit have to be assigned
+       to 0 and new state's bit have to be assigned 
+       to 1. */
+    
+    SkipSpaces (output, deep);
+    fprintf    (output, "state [%d] = 0;\n", currentParsingState);
+    
+    int stateNumber = -1;
+    for (int i = 0; i < states.size(); i++)
+         if (tokeniser -> tokensBuffer [currentToken] -> name == states [i])
+             stateNumber = i;
+    
+    SkipSpaces (output, deep);
+    fprintf    (output, "state [%d] = 1;\n", stateNumber);
+    
     currentToken++;
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
