@@ -33,6 +33,8 @@ class Translator
     bool Switch              (FILE* output, int deep);
     bool State               (FILE* output, int deep);
     bool IfBlock             (FILE* output, int deep);
-    bool Signal              (FILE* output, int deep);
+    bool EmitSignal          (FILE* output, int deep);
+    bool StopSignal          (FILE* output, int deep);
+    bool StopSignals         (FILE* output, int deep);
     bool Transitto           (FILE* output, int deep);
 };

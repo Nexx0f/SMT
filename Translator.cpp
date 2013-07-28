@@ -57,9 +57,19 @@ bool Translator::TranslateMainBlocks(FILE* output, int deep)
             if (!IfBlock (output, deep)) return false;
         }
         else
-        if (CheckCurrentToken (TokenType::keyword, TokenSubtype::signal))
+        if (CheckCurrentToken (TokenType::keyword, TokenSubtype::emitSignal))
         {
-            if (!Signal (output, deep)) return false;
+            if (!EmitSignal (output, deep)) return false;
+        }
+        else
+        if (CheckCurrentToken (TokenType::keyword, TokenSubtype::stopSignal))
+        {
+            if (!StopSignal (output, deep)) return false;
+        }
+        else
+        if (CheckCurrentToken (TokenType::keyword, TokenSubtype::stopSignals))
+        {
+            if (!StopSignals (output, deep)) return false;
         }
         else
         if (CheckCurrentToken (TokenType::keyword, TokenSubtype::transitto))
@@ -386,15 +396,15 @@ bool Translator::IfBlock(FILE *output, int deep)
     return true;
 }
 
-bool Translator::Signal (FILE* output, int deep)
+bool Translator::EmitSignal (FILE* output, int deep)
 {
     currentToken++;
     
-    /* This is a <signal> command which 
+    /* This is a <emitsignal> command which 
        assigns defined output to high level.
        It translates to assignment in verilog */
     
-    if (dump) printf ("Begin to read signal\n");
+    if (dump) printf ("Begin to read emitsignal\n");
     
     if (!CheckName (tokeniser -> tokensBuffer [currentToken], "output", &outputs))
         return false;
@@ -402,6 +412,51 @@ bool Translator::Signal (FILE* output, int deep)
     SkipSpaces (output, deep);
     fprintf    (output, "%s = 1;\n", tokeniser -> tokensBuffer [currentToken] -> name.c_str());
     currentToken++;
+    
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
+    else return ParsingError (";");
+    
+    return true;
+}
+
+bool Translator::StopSignal (FILE* output, int deep)
+{
+    currentToken++;
+    
+    /* This is a <stopsignal> command which 
+       assigns defined output to low level.
+       It translates to assignment in verilog */
+    
+    if (dump) printf ("Begin to read stopsignal\n");
+    
+    if (!CheckName (tokeniser -> tokensBuffer [currentToken], "output", &outputs))
+        return false;
+    
+    SkipSpaces (output, deep);
+    fprintf    (output, "%s = 0;\n", tokeniser -> tokensBuffer [currentToken] -> name.c_str());
+    currentToken++;
+    
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
+    else return ParsingError (";");
+    
+    return true;
+}
+
+bool Translator::StopSignals (FILE* output, int deep)
+{
+    currentToken++;
+    
+    /* This is a <signal> command which 
+       assigns defined all outputs to low level.
+       It translates to assignment in verilog */
+    
+    if (dump) printf ("Begin to read stopsignals\n");
+    
+    for (int i = 0; i < outputs.size(); i++)
+    {
+        SkipSpaces (output, deep);
+        fprintf    (output, "%s = 0;\n", outputs [i].c_str());
+    }
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
     else return ParsingError (";");
@@ -423,15 +478,18 @@ bool Translator::Transitto (FILE* output, int deep)
     if (!CheckName (tokeniser -> tokensBuffer [currentToken], "state", &states))
         return false;
     
+    /* Left for history... */
     /* Before transition all output signals 
        have to be in low level. It may be changed
-       in future. */
+       in future. */ 
     
-    for (int i = 0; i < outputs.size(); i++)
-    {
-        SkipSpaces (output, deep);
-        fprintf    (output, "%s = 0;\n", outputs [i].c_str());
-    }
+    /* for (int i = 0; i < outputs.size(); i++)
+       {
+           SkipSpaces (output, deep);
+           fprintf    (output, "%s = 0;\n", outputs [i].c_str());
+       } */
+    
+    
     
     /* Then last state's bit have to be assigned
        to 0 and new state's bit have to be assigned 

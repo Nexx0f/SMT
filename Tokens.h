@@ -14,13 +14,15 @@ namespace TokenType
 namespace TokenSubtype
 {
     const int states       = 0;
-    const int inputs        = 1;
-    const int outputs       = 2;
+    const int inputs       = 1;
+    const int outputs      = 2;
     const int switchType   = 3;
     const int state        = 4;
-    const int signal       = 5;
+    const int emitSignal   = 5;
     const int ifType       = 6;
     const int transitto    = 7;
+    const int stopSignal   = 8;
+    const int stopSignals  = 9;
     
     const int start        = 100;
     const int end          = 101;

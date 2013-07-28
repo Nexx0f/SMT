@@ -7,13 +7,15 @@ Tokeniser::Tokeniser()
     dump = false;
  
     keysData.pushKey ({TokenType::keyword, TokenSubtype::states,       "States",         "states"});
-    keysData.pushKey ({TokenType::keyword, TokenSubtype::inputs,        "Inputs",         "inputs"});
-    keysData.pushKey ({TokenType::keyword, TokenSubtype::outputs,       "Outputs",        "outputs"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::inputs,       "Inputs",         "inputs"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::outputs,      "Outputs",        "outputs"});
     keysData.pushKey ({TokenType::keyword, TokenSubtype::switchType,   "Switch",         "switch"});
     keysData.pushKey ({TokenType::keyword, TokenSubtype::state,        "State",          "state"});
-    keysData.pushKey ({TokenType::keyword, TokenSubtype::signal,       "Signal",         "signal"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::emitSignal,   "EmitSignal",     "emitsignal"});
     keysData.pushKey ({TokenType::keyword, TokenSubtype::ifType,       "If",             "if"});
     keysData.pushKey ({TokenType::keyword, TokenSubtype::transitto,    "Transitto",      "transitto"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::stopSignal,   "StopSignal",     "stopsignal"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::stopSignals,  "StopSignals",    "stopsignals"});
     
     keysData.pushKey ({TokenType::divider, TokenSubtype::comma,        "Comma",          ","});
     keysData.pushKey ({TokenType::divider, TokenSubtype::start,        "Start of block", "{"});
