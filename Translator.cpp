@@ -1,5 +1,7 @@
 #include "Translator.h"
 
+#define SS SkipSpaces(deep);
+
 Translator::Translator ()
 {
     dump = false;
@@ -12,16 +14,28 @@ void Translator::SetTranslator(Tokeniser* newTokeniser, bool newDump)
     tokeniser = newTokeniser;
     dump      = newDump;
 }
-bool Translator::Translate(FILE* output)
+bool Translator::Translate()
 {
     currentToken = 0;
     currentParsingState = 0;
     int deep = 0;
     
-    return TranslateMainBlocks (output, deep);
+    printf ("First <TranslateMainBlock> called\n");
+    int result = TranslateMainBlocks (Condition {}, 0, 0);
+    printf ("Exit from first <TranslateMainBlock>\n"
+            "<states> size = %d, <state[0]> size = %d\n", conditionalTransits.size(), conditionalTransits[1].size());
+    deep = 4;
+    printf ("\n\nPrinting all conditional actions:\n");
+    for (int i = 0; i < conditionalTransits.size(); i++)
+         for (int t = 0; t < conditionalTransits[i].size(); t++)
+         {
+             SS printf ("Transition from state %d. Conditional inputs are", i);
+             conditionalTransits[i][t].DumpConditionalAction (&states);
+         }    
+    return result;
 }
 
-bool Translator::TranslateMainBlocks(FILE* output, int deep)
+bool Translator::TranslateMainBlocks(Condition condition, int stateNumber, int deep)
 {
     int tokensBufferSize = tokeniser -> tokensBuffer.size();
     
@@ -44,37 +58,50 @@ bool Translator::TranslateMainBlocks(FILE* output, int deep)
         else
         if (CheckCurrentToken (TokenType::keyword, TokenSubtype::switchType))
         {
-            if (!Switch (output, deep)) return false;
+            if (!Switch ()) return false;
         }
         else
         if (CheckCurrentToken (TokenType::keyword, TokenSubtype::state))
         {
-            if (!State (output, deep)) return false;
+            if (dump) {SS printf ("Opening <state> block\n");}
+                if (!State (condition, deep)) return false;
+            if (dump) {SS printf ("<state> block closed\n");}
         }
         else
         if (CheckCurrentToken (TokenType::keyword, TokenSubtype::ifType))
         {
-            if (!IfBlock (output, deep)) return false;
+            
+            if (dump) {SS printf ("Opening <if> block\n");}
+                if (!IfBlock (condition, stateNumber, deep)) return false;
+            if (dump) {SS printf ("<if> block closed\n");}
         }
         else
         if (CheckCurrentToken (TokenType::keyword, TokenSubtype::emitSignal))
         {
-            if (!EmitSignal (output, deep)) return false;
+            if (dump) {SS printf ("Reading <emitSignal>\n");}
+                if (!EmitSignal (condition, stateNumber, deep)) return false;
+            if (dump) {SS printf ("<emitSignal> read\n");}    
         }
         else
         if (CheckCurrentToken (TokenType::keyword, TokenSubtype::stopSignal))
         {
-            if (!StopSignal (output, deep)) return false;
+            if (dump) {SS printf ("Reading <stopSignal>\n");}
+                if (!StopSignal (condition, stateNumber, deep)) return false;
+            if (dump) {SS printf ("<stopSignal> read\n");}
         }
         else
         if (CheckCurrentToken (TokenType::keyword, TokenSubtype::stopSignals))
         {
-            if (!StopSignals (output, deep)) return false;
+            if (dump) {SS printf ("Reading <stopSignals>\n");}
+                if (!StopSignals (condition, stateNumber, deep)) return false;
+            if (dump) {SS printf ("<stopSignals> read\n");}
         }
         else
         if (CheckCurrentToken (TokenType::keyword, TokenSubtype::transitto))
         {
-            if (!Transitto (output, deep)) return false;
+            if (dump) {SS printf ("Reading <transitto>\n");}
+                if (!Transitto (condition, stateNumber, deep)) return false;
+            if (dump) {SS printf ("<transitto> read\n");}
         }
         else
         if (CheckCurrentToken (TokenType::divider, TokenSubtype::end))
@@ -144,7 +171,10 @@ bool Translator::ReadList(const char* only, const char* multiple, std::vector <s
 
 bool Translator::States()
 {
-    return ReadList ("state", "states", &states);
+    bool success =  ReadList ("state", "states", &states);
+    conditionalTransits.resize (states.size());
+    conditionalOutputs.resize (states.size());
+    return success;
 }
 
 bool Translator::Inputs()
@@ -157,12 +187,12 @@ bool Translator::Outputs()
     return ReadList ("output", "outputs", &outputs);
 }
 
-void Translator::SkipSpaces (FILE* output, int deep)
+void Translator::SkipSpaces (int deep)
 {
-    for (int i = 0; i < deep; i++) fprintf (output, " ");
+    for (int i = 0; i < deep; i++) printf (" ");
 }
 
-bool Translator::Switch (FILE* output, int deep)
+bool Translator::Switch ()
 {
     currentToken++;
     if (dump) printf ("Begin to read switch\n");
@@ -170,100 +200,15 @@ bool Translator::Switch (FILE* output, int deep)
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::start)) currentToken++;
     else return ParsingError ("{");
     
-    /* There is a start of translating main swith
-       to verilog's module. It contains prototype
-       of module, <state> variable initialisation, and begin
-       of "always" block */
+    Condition condition;
+
     
-    SkipSpaces (output, deep);
-    fprintf (output, "module state_machine (");
+    if (!TranslateMainBlocks(condition, 0, 0)) return false;
     
-    if (dump) printf ("Translating inputs...  (");
-        
-    int space = strlen ("module state_machine (");
-    for (int i = 0; i < inputs.size(); i++)
-    {
-        fprintf (output, "input  %s,\n", inputs [i].c_str());
-        SkipSpaces (output, deep + space); 
-            
-        if (dump) printf  ("%s", inputs [i].c_str());
-        if (i != inputs.size() - 1) 
-            if (dump) printf (", ");
-    }
-    
-    if (dump) printf (")\nTranslating outputs... (");
-    
-    for (int i = 0; i < outputs.size(); i++)
-    {
-        fprintf (output, "output reg %s", outputs [i].c_str());
-        if (i != outputs.size() - 1)
-        {
-            fprintf (output, ",\n");
-            SkipSpaces (output, deep + space); 
-        }
-        
-        if (dump) printf  ("%s", outputs [i].c_str());
-        if (i != outputs.size() - 1) 
-            if (dump) printf (", ");
-    }
-    
-    if (dump) printf (")\n");
-    fprintf (output, ");\n\n");
-    
-    /* Prototype of module was generated.
-       Now initialisation of <state> variable */
-    
-    SkipSpaces (output, deep);
-    fprintf (output, "reg [%d:0] state = 1;\n\n", states.size() - 1);
-    if (dump) printf ("State variable was initialised. "
-                      "State machine has %d states. "
-                      "It means that state variable will have %d bits.\n", 
-                      states.size(), states.size());
-    
-    /* <state> varianle was initialised.
-       Now begin of always block. */
-    
-    SkipSpaces (output, deep);
-    fprintf (output, "always @("); 
-    
-    int secondSpace = strlen ("always @(");
-    for (int i = 0; i < inputs.size(); i++)
-    {
-        fprintf (output, "%s", inputs [i].c_str());
-        if (i != inputs.size() - 1)
-        {
-            fprintf (output, " or\n");
-            SkipSpaces (output, deep + secondSpace);
-        }
-    }
-    fprintf (output, ")\n");
-    SkipSpaces (output, deep);
-    fprintf (output, "begin\n");
-    
-    if (dump) printf ("Always block was inialised.\n"
-                      "Recursive call of blocks translate function...\n");
-    
-    /* Begin of always block was written.
-       Now recursive all of function <TranslateMainBlocks>.
-       It have to read and translate all
-       that switch contains */
-    
-    if (!TranslateMainBlocks(output, deep + 4)) return false;
-    
-    /* There is end of generating file.
-       It contains end of always block and
-       <endmodule> keyword */
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::end)) currentToken++;
     else return ParsingError ("}");
-    
-    SkipSpaces (output, deep);
-    fprintf (output, "end\n\n");
-    SkipSpaces (output, deep);
-    fprintf (output, "endmodule");
-    if (dump) printf ("Blocks translate function ended it's work\n"
-                      "Writing end of always block and <endmodule> keyword to output file...\n\n\n"
-                      "Switch DONE\n\n");
+
     
     return true;
 }
@@ -279,17 +224,9 @@ bool Translator::CheckName (Token* token, const char* only, std::vector <std::st
     return false;
 }
 
-bool Translator::State (FILE* output, int deep)
+bool Translator::State (Condition condition, int deep)
 {
     currentToken++;
-    
-    /* There is a conditional block which
-       executes when state machine is on defined
-       state. First we have to read name of state,
-       find it's number and then translate it
-       to the <if> block in verilog code */
-    
-    if (dump) printf ("Begin to read state block\n");
     
     if (!CheckName (tokeniser -> tokensBuffer [currentToken], "state", &states))
         return false;
@@ -299,65 +236,24 @@ bool Translator::State (FILE* output, int deep)
          if (tokeniser -> tokensBuffer [currentToken] -> name == states [i])
              stateNumber = i;
     currentParsingState = stateNumber;
-         
-    SkipSpaces (output, deep);     
-    fprintf (output, "if (state [%d] == 1)\n", stateNumber);     
-    if (dump) printf ("<If> block (<state> block in smt language) was initialised\n"
-                      "Number of bit that equals <%s> state is %d\n",
-                      tokeniser -> tokensBuffer [currentToken] -> name.c_str(), stateNumber);
     
     currentToken++;
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::start)) currentToken++;
     else return ParsingError ("{");
     
-    SkipSpaces (output, deep);
-    fprintf (output, "begin\n");
-    
-    if (dump) printf ("Recursive call of blocks translate function...\n");
-    
-    /* Begin of if block was written.
-       Now recursive all of function <TranslateMainBlocks>.
-       It have to read and translate all
-       that state block contains */
-    
-    if (!TranslateMainBlocks(output, deep + 4)) return false;
-    
-    /* There is end of if block.
-       It contains end keyword */
+   
+    if (!TranslateMainBlocks(condition, stateNumber, deep+4)) return false;
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::end)) currentToken++;
     else return ParsingError ("}");
     
-    if (CheckCurrentToken (TokenType::keyword, TokenSubtype::state)) 
-    {
-        SkipSpaces (output, deep);
-        fprintf (output, "end\n");
-        SkipSpaces (output, deep);
-        fprintf (output, "else\n");
-    }
-    else 
-    {
-        SkipSpaces (output, deep);
-        fprintf (output, "end\n");
-    }
-        
-    if (dump) printf ("Blocks translate function ended it's work\n"
-                      "Writing end of if block to output file...\n\n\n");
-    
     return true;
 }
 
-bool Translator::IfBlock(FILE *output, int deep)
+bool Translator::IfBlock(Condition condition, int stateNumber, int deep)
 {
     currentToken++;
-    
-    /* This is a conditional block which 
-       executes when defined input
-       has high level. This block translates
-       to the <if> block in verilog */
-    
-    if (dump) printf ("Begin to read if block\n");
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::leftBracket)) currentToken++;
     else return ParsingError ("(");
@@ -365,98 +261,54 @@ bool Translator::IfBlock(FILE *output, int deep)
     if (!CheckName (tokeniser -> tokensBuffer [currentToken], "input", &inputs))
         return false;
     
-    SkipSpaces (output, deep);
-    fprintf    (output, "if (%s", tokeniser -> tokensBuffer [currentToken] -> name.c_str());
+    int inputNumber = -1;
+    for (int i = 0; i < inputs.size(); i++)
+         if (tokeniser -> tokensBuffer [currentToken] -> name == inputs [i])
+         {
+             inputNumber = i;
+             break;
+         }
+             
+    condition.PushSubCondition (inputNumber);
     currentToken++;
 
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::rightBracket)) currentToken++;
     else return ParsingError (")");
-    fprintf (output, ")\n");
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::start)) currentToken++;
     else return ParsingError ("{");
-    SkipSpaces (output, deep);
-    fprintf    (output, "begin\n");
     
-    /* Begin of if block was written.
-       Now recursive all of function <TranslateMainBlocks>.
-       It have to read and translate all
-       that state block contains */
-    
-    if (!TranslateMainBlocks(output, deep + 4)) return false;
-    
-    /* There is end of if block.
-       It contains end keyword */
+    if (!TranslateMainBlocks(condition, stateNumber, deep+4)) return false;
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::end)) currentToken++;
     else return ParsingError ("}");
-    SkipSpaces (output, deep);
-    fprintf    (output, "end\n");
     
     return true;
 }
 
-bool Translator::EmitSignal (FILE* output, int deep)
+bool Translator::EmitSignal (Condition condition, int stateNumber, int deep)
 {
     currentToken++;
-    
-    /* This is a <emitsignal> command which 
-       assigns defined output to high level.
-       It translates to assignment in verilog */
-    
-    if (dump) printf ("Begin to read emitsignal\n");
-    
+        
     if (!CheckName (tokeniser -> tokensBuffer [currentToken], "output", &outputs))
         return false;
     
-    SkipSpaces (output, deep);
-    fprintf    (output, "%s = 1;\n", tokeniser -> tokensBuffer [currentToken] -> name.c_str());
-    currentToken++;
-    
-    if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
-    else return ParsingError (";");
-    
-    return true;
-}
-
-bool Translator::StopSignal (FILE* output, int deep)
-{
-    currentToken++;
-    
-    /* This is a <stopsignal> command which 
-       assigns defined output to low level.
-       It translates to assignment in verilog */
-    
-    if (dump) printf ("Begin to read stopsignal\n");
-    
-    if (!CheckName (tokeniser -> tokensBuffer [currentToken], "output", &outputs))
-        return false;
-    
-    SkipSpaces (output, deep);
-    fprintf    (output, "%s = 0;\n", tokeniser -> tokensBuffer [currentToken] -> name.c_str());
-    currentToken++;
-    
-    if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
-    else return ParsingError (";");
-    
-    return true;
-}
-
-bool Translator::StopSignals (FILE* output, int deep)
-{
-    currentToken++;
-    
-    /* This is a <signal> command which 
-       assigns defined all outputs to low level.
-       It translates to assignment in verilog */
-    
-    if (dump) printf ("Begin to read stopsignals\n");
-    
+    int outputNumber = 0;
     for (int i = 0; i < outputs.size(); i++)
+         if (tokeniser -> tokensBuffer [currentToken] -> name == outputs [i])
+         {
+             outputNumber = i;
+             break;
+         }
+    ConditionalAction newAction (condition, outputNumber, ActionType::signalEmitting);
+    if (dump) 
     {
-        SkipSpaces (output, deep);
-        fprintf    (output, "%s = 0;\n", outputs [i].c_str());
+        deep+=4;
+        SS newAction.DumpConditionalAction(&states);
     }
+    conditionalOutputs[stateNumber].push_back(newAction);
+    
+    currentToken++;
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
     else return ParsingError (";");
@@ -464,48 +316,74 @@ bool Translator::StopSignals (FILE* output, int deep)
     return true;
 }
 
-bool Translator::Transitto (FILE* output, int deep)
+bool Translator::StopSignal (Condition condition, int stateNumber, int deep)
 {
     currentToken++;
     
-    /* This is a <transitto> command which 
-       transits state machine to the defined.
-       state. It translates to some assignments
-       in verilog */
+    if (!CheckName (tokeniser -> tokensBuffer [currentToken], "output", &outputs))
+        return false;
     
-    if (dump) printf ("Begin to read transitto\n");
+    int outputNumber = 0;
+    for (int i = 0; i < outputs.size(); i++)
+         if (tokeniser -> tokensBuffer [currentToken] -> name == outputs [i])
+         {
+             outputNumber = i;
+             break;
+         }
+         
+    ConditionalAction newAction (condition, outputNumber, ActionType::signalStopping);
+    if (dump) 
+    {
+        deep+=4;
+        SS newAction.DumpConditionalAction(&states);
+    }
+    conditionalOutputs[stateNumber].push_back(newAction);
+    
+    currentToken++;
+    
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
+    else return ParsingError (";");
+    
+    return true;
+}
+
+bool Translator::StopSignals (Condition condition, int stateNumber, int deep)
+{
+    currentToken++;
+    
+    ConditionalAction newAction (condition, -1, ActionType::allSignalsStopping);
+    if (dump) 
+    {
+        deep+=4;
+        SS newAction.DumpConditionalAction(&states);
+    }
+    conditionalOutputs[stateNumber].push_back(newAction);
+    
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
+    else return ParsingError (";");
+    
+    return true;
+}
+
+bool Translator::Transitto (Condition condition, int stateNumber, int deep)
+{
+    currentToken++;
     
     if (!CheckName (tokeniser -> tokensBuffer [currentToken], "state", &states))
         return false;
     
-    /* Left for history... */
-    /* Before transition all output signals 
-       have to be in low level. It may be changed
-       in future. */ 
-    
-    /* for (int i = 0; i < outputs.size(); i++)
-       {
-           SkipSpaces (output, deep);
-           fprintf    (output, "%s = 0;\n", outputs [i].c_str());
-       } */
-    
-    
-    
-    /* Then last state's bit have to be assigned
-       to 0 and new state's bit have to be assigned 
-       to 1. */
-    
-    SkipSpaces (output, deep);
-    fprintf    (output, "state [%d] = 0;\n", currentParsingState);
-    
-    int stateNumber = -1;
+    int newStateNumber = -1;
     for (int i = 0; i < states.size(); i++)
          if (tokeniser -> tokensBuffer [currentToken] -> name == states [i])
-             stateNumber = i;
-    
-    SkipSpaces (output, deep);
-    fprintf    (output, "state [%d] = 1;\n", stateNumber);
-    
+             newStateNumber = i;
+         
+    ConditionalAction newAction (condition, newStateNumber, ActionType::transition);
+    if (dump) 
+    {
+        deep+=4;
+        SS newAction.DumpConditionalAction(&states);
+    }
+    conditionalTransits[stateNumber].push_back(newAction);
     currentToken++;
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
