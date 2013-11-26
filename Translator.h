@@ -1,8 +1,10 @@
 #include "Tokeniser.h"
 #include "Conditions.h"
+#include "Generator.h"
 
 class Translator 
 {
+    public:
     Tokeniser* tokeniser;
     bool       dump;
     

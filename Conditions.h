@@ -2,6 +2,9 @@
 #include <string>
 #include <stdio.h>
 
+#ifndef H_CONDITIONS
+#define H_CONDITIONS
+
 namespace ActionType
 {
     const int transition         = 0;
@@ -32,3 +35,5 @@ class ConditionalAction
          ConditionalAction     (Condition newCondition, int newAction, int newActionType);
     void DumpConditionalAction (std::vector <std::string>* namesData);
 };
+
+#endif

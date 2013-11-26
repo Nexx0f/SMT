@@ -22,16 +22,25 @@ bool Translator::Translate()
     
     printf ("First <TranslateMainBlock> called\n");
     int result = TranslateMainBlocks (Condition {}, 0, 0);
-    printf ("Exit from first <TranslateMainBlock>\n"
-            "<states> size = %d, <state[0]> size = %d\n", conditionalTransits.size(), conditionalTransits[1].size());
+    printf ("Exit from first <TranslateMainBlock>\n");
+    
     deep = 4;
+    
     printf ("\n\nPrinting all conditional actions:\n");
     for (int i = 0; i < conditionalTransits.size(); i++)
          for (int t = 0; t < conditionalTransits[i].size(); t++)
          {
              SS printf ("Transition from state %d. Conditional inputs are", i);
              conditionalTransits[i][t].DumpConditionalAction (&states);
-         }    
+         }
+    printf ("\n");
+    for (int i = 0; i < conditionalOutputs.size(); i++)
+         for (int t = 0; t < conditionalOutputs[i].size(); t++)
+         {
+             SS printf ("Output action from state %d. Conditional inputs are", i);
+             conditionalOutputs[i][t].DumpConditionalAction (&states);
+         }
+         
     return result;
 }
 
