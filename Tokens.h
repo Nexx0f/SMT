@@ -23,6 +23,10 @@ namespace TokenSubtype
     const int transitto    = 7;
     const int stopSignal   = 8;
     const int stopSignals  = 9;
+    const int transition   = 10;
+    const int on           = 11;
+    const int to           = 12;
+    const int tokenDo      = 13;
     
     const int start        = 100;
     const int end          = 101;

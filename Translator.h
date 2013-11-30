@@ -20,27 +20,29 @@ class Translator
     
     public:
         
-         Translator          ();
-    void SetTranslator       (Tokeniser* newTokeniser, bool newDump);
+         Translator             ();
+    void SetTranslator          (Tokeniser* newTokeniser, bool newDump);
     
-    bool CheckCurrentToken   (int type, int subtype);
-    bool CheckName           (Token *token, const char* only, std::vector <std::string>* list);
-    bool ParsingError        (const char* expected);
-    void SkipSpaces          (int deep);
+    bool CheckCurrentToken      (int type, int subtype);
+    bool CheckName              (Token *token, const char* only, std::vector <std::string>* list);
+    bool ParsingError           (const char* expected);
+    void SkipSpaces             (int deep);
     
-    bool Translate           ();
-    bool TranslateMainBlocks (Condition condition, int stateNumber, int deep);
+    bool Translate              ();
+    bool TranslateMainBlocks    (Condition condition, int stateNumber, int deep);
+    bool SortConditionalOutputs ();
     
-    bool ReadList            (const char* only, const char* multiple, std::vector <std::string>* list);
+    bool ReadList               (const char* only, const char* multiple, std::vector <std::string>* list);
     
-    bool States              ();
-    bool Inputs              ();
-    bool Outputs             ();
-    bool Switch              ();
-    bool State               (Condition condition, int deep);
-    bool IfBlock             (Condition condition, int stateNumber, int deep);
-    bool EmitSignal          (Condition condition, int stateNumber, int deep);
-    bool StopSignal          (Condition condition, int stateNumber, int deep);
-    bool StopSignals         (Condition condition, int stateNumber, int deep);
-    bool Transitto           (Condition condition, int stateNumber, int deep);
+    bool States                 ();
+    bool Inputs                 ();
+    bool Outputs                ();
+    bool Switch                 ();
+    bool State                  (Condition condition, int deep);
+    bool IfBlock                (Condition condition, int stateNumber, int deep);
+    bool EmitSignal             (Condition condition, int stateNumber, int deep);
+    bool StopSignal             (Condition condition, int stateNumber, int deep);
+    bool StopSignals            (Condition condition, int stateNumber, int deep);
+    bool Transitto              (Condition condition, int stateNumber, int deep);
+    bool Transition             (Condition condition, int stateNumber, int deep);
 };              

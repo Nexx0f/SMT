@@ -2,11 +2,26 @@
 
 Condition::Condition ()
 {
+    onState = false;
+    transitionState = -1;
 }
 
 void Condition::PushSubCondition (int input)
 {
     subConditions.push_back (input);
+}
+
+bool Condition::PushStateCondition(int state)
+{
+    if (transitionState != -1)
+    {
+        printf ("\n========> Error: Multiple transition enclosure <========\n");
+        return false;
+    }
+    
+    onState = true;
+    transitionState = state;
+    return true;
 }
 
 int Condition::PopSubCondition()
@@ -28,7 +43,7 @@ void Condition::DumpCondition()
     }
 }
 
-ConditionalAction::ConditionalAction(Condition newCondition , int newAction , int newActionType):
+ConditionalAction::ConditionalAction(Condition newCondition, int newAction, int newActionType):
     condition  (newCondition),
     action     (newAction),
     actionType (newActionType)

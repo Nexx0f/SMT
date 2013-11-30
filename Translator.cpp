@@ -14,31 +14,67 @@ void Translator::SetTranslator(Tokeniser* newTokeniser, bool newDump)
     tokeniser = newTokeniser;
     dump      = newDump;
 }
+
+bool Translator::SortConditionalOutputs()
+{
+
+/*      Sorting conditions. Index of the transitional
+ * conditional action (<do> block) have to be lower than others.
+ * Or in some cases generated code will be incorrect */    
+
+    for (int state = 0; state < conditionalOutputs.size(); state++)
+         for (int first = 0; first < conditionalOutputs[state].size()-1; first++)
+              for (int i = 0; i < conditionalOutputs[state].size()-1; i++)
+              {
+                  if (conditionalOutputs[state][i+1].condition.onState &&
+                      !conditionalOutputs[state][i].condition.onState)
+                  {
+                      ConditionalAction temp         = conditionalOutputs[state][i];
+                      conditionalOutputs[state][i]   = conditionalOutputs[state][i+1];
+                      conditionalOutputs[state][i+1] = temp;
+                  }
+              }
+    
+}
+
 bool Translator::Translate()
 {
     currentToken = 0;
     currentParsingState = 0;
     int deep = 0;
     
-    printf ("First <TranslateMainBlock> called\n");
+    if (dump) printf ("First <TranslateMainBlock> called\n");
     int result = TranslateMainBlocks (Condition {}, 0, 0);
-    printf ("Exit from first <TranslateMainBlock>\n");
+    if (dump) printf ("Exit from first <TranslateMainBlock>\n");
     
+    
+    if (dump) printf ("\n"
+                      "Sorting conditional output actions...  ");
+    SortConditionalOutputs ();
+    if (dump) printf ("Completed.");
+        
     deep = 4;
     
-    printf ("\n\nPrinting all conditional actions:\n");
+    if (dump) printf ("\n\nPrinting all conditional actions:\n");
     for (int i = 0; i < conditionalTransits.size(); i++)
          for (int t = 0; t < conditionalTransits[i].size(); t++)
          {
-             SS printf ("Transition from state %d. Conditional inputs are", i);
-             conditionalTransits[i][t].DumpConditionalAction (&states);
+             if (dump) 
+             {
+                 SS printf ("Transition from state %d. Conditional inputs are", i);
+                conditionalTransits[i][t].DumpConditionalAction (&states);
+             }
          }
-    printf ("\n");
+         
+    if (dump) printf ("\n");
     for (int i = 0; i < conditionalOutputs.size(); i++)
          for (int t = 0; t < conditionalOutputs[i].size(); t++)
          {
-             SS printf ("Output action from state %d. Conditional inputs are", i);
-             conditionalOutputs[i][t].DumpConditionalAction (&states);
+             if (dump) 
+             {
+                 SS printf ("Output action from state %d. Conditional inputs are", i);
+                 conditionalOutputs[i][t].DumpConditionalAction (&states);
+             }
          }
          
     return result;
@@ -106,11 +142,11 @@ bool Translator::TranslateMainBlocks(Condition condition, int stateNumber, int d
             if (dump) {SS printf ("<stopSignals> read\n");}
         }
         else
-        if (CheckCurrentToken (TokenType::keyword, TokenSubtype::transitto))
+        if (CheckCurrentToken (TokenType::keyword, TokenSubtype::transition))
         {
-            if (dump) {SS printf ("Reading <transitto>\n");}
-                if (!Transitto (condition, stateNumber, deep)) return false;
-            if (dump) {SS printf ("<transitto> read\n");}
+            if (dump) {SS printf ("Reading <transition>\n");}
+                if (!Transition (condition, stateNumber, deep)) return false;
+            if (dump) {SS printf ("<transition> read\n");}
         }
         else
         if (CheckCurrentToken (TokenType::divider, TokenSubtype::end))
@@ -315,7 +351,14 @@ bool Translator::EmitSignal (Condition condition, int stateNumber, int deep)
         deep+=4;
         SS newAction.DumpConditionalAction(&states);
     }
-    conditionalOutputs[stateNumber].push_back(newAction);
+    
+    if (!condition.onState) conditionalOutputs[stateNumber].push_back(newAction);
+    else
+    {
+            int tmp = condition.transitionState;
+            newAction.condition.transitionState = stateNumber;
+            conditionalOutputs[tmp].push_back(newAction);
+    }
     
     currentToken++;
     
@@ -346,7 +389,14 @@ bool Translator::StopSignal (Condition condition, int stateNumber, int deep)
         deep+=4;
         SS newAction.DumpConditionalAction(&states);
     }
-    conditionalOutputs[stateNumber].push_back(newAction);
+    
+    if (!condition.onState) conditionalOutputs[stateNumber].push_back(newAction);
+    else
+    {
+            int tmp = condition.transitionState;
+            newAction.condition.transitionState = stateNumber;
+            conditionalOutputs[tmp].push_back(newAction);
+    }
     
     currentToken++;
     
@@ -366,7 +416,15 @@ bool Translator::StopSignals (Condition condition, int stateNumber, int deep)
         deep+=4;
         SS newAction.DumpConditionalAction(&states);
     }
-    conditionalOutputs[stateNumber].push_back(newAction);
+    
+    if (!condition.onState) conditionalOutputs[stateNumber].push_back(newAction);
+    else
+    {
+            int tmp = condition.transitionState;
+            newAction.condition.transitionState = stateNumber;
+            
+            conditionalOutputs[tmp].push_back(newAction);
+    }
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
     else return ParsingError (";");
@@ -397,6 +455,82 @@ bool Translator::Transitto (Condition condition, int stateNumber, int deep)
     
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::colon)) currentToken++;
     else return ParsingError (";");
+    
+    return true;
+}
+
+bool Translator::Transition(Condition condition, int stateNumber, int deep)
+{
+    /* 1) Read conditions
+     * 2) Read destination state 
+     * 3) Generate transition event 
+     * 4) Call TranslateMainBlocks with special conditions */
+    
+    currentToken++;
+    
+    if (CheckCurrentToken (TokenType::keyword, TokenSubtype::on)) currentToken++;
+    else return ParsingError ("on");
+    
+    /* Reading condition block. On that conditions 
+     * we will transit to the next state */
+    
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::leftBracket)) currentToken++;
+    else return ParsingError ("(");
+    
+    if (!CheckName (tokeniser -> tokensBuffer [currentToken], "input", &inputs))
+        return false;
+    
+    int inputNumber = -1;
+    for (int i = 0; i < inputs.size(); i++)
+         if (tokeniser -> tokensBuffer [currentToken] -> name == inputs [i])
+         {
+             inputNumber = i;
+             break;
+         }
+    
+    condition.PushSubCondition (inputNumber);
+    currentToken++;
+
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::rightBracket)) currentToken++;
+    else return ParsingError (")");
+    
+    /* Condition block was read */
+    
+    /* Reading destination state */
+    
+    if (CheckCurrentToken (TokenType::keyword, TokenSubtype::to)) currentToken++;
+    else return ParsingError ("to");
+    
+    int newStateNumber = -1;
+    for (int i = 0; i < states.size(); i++)
+         if (tokeniser -> tokensBuffer [currentToken] -> name == states [i])
+             newStateNumber = i;   
+         
+    ConditionalAction newAction (condition, newStateNumber, ActionType::transition);
+    if (dump) 
+    {
+        deep+=4;
+        SS newAction.DumpConditionalAction(&states);
+    }
+    conditionalTransits[stateNumber].push_back(newAction);
+    currentToken++;
+    
+    /* Destination state read */
+    
+    /* Making special condition and reading do block */
+    
+    if (!condition.PushStateCondition (newStateNumber)) return false;
+   
+    if (CheckCurrentToken (TokenType::keyword, TokenSubtype::tokenDo)) currentToken++;
+    else return ParsingError ("do");
+    
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::start)) currentToken++;
+    else return ParsingError ("{");
+    
+    if (!TranslateMainBlocks(condition, stateNumber, deep+4)) return false;
+    
+    if (CheckCurrentToken (TokenType::divider, TokenSubtype::end)) currentToken++;
+    else return ParsingError ("}");
     
     return true;
 }

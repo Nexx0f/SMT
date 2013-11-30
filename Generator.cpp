@@ -4,6 +4,15 @@
 
 #define SS(a) for(int i = 0; i < a; i++) fprintf (output, " ");
 
+/* TODO (1): sort conditions. Index of the transitional
+ *           conditional action (<do> block) have to be lower than others.
+ *           Or in some cases generated code will be incorrect */
+
+/* TODO (2): if's cases have do be checed with all burned inputs 
+ *           and posedge of any burned input or negedge of any input */
+
+/* TODO (3): Parse multiple conditions */
+
 Generator::Generator(int initStatesQuantity,
                      int initInputsQuantity,
                      int initOutputsQuantity,
@@ -50,7 +59,7 @@ bool Generator::GenerateDeclaration (FILE* output)
 
 bool Generator::GenerateVariablesInitialisation (FILE* output)
 {
-    /* Generating <state> integer and size
+    /* Generating <state> and <last_state> integers and size
      * of it's bus (next power of 2 after states quantity) */
     
     int busSize = 0;
@@ -61,6 +70,10 @@ bool Generator::GenerateVariablesInitialisation (FILE* output)
     if (dump) printf ("    <state> bus size is %d for %d states\n", busSize, statesQuantity);
     fprintf (output, "\n\n");
     fprintf (output, "reg [%d:0] state;\n", busSize-1);
+    
+    if (dump) printf ("    <last_state> bus size is %d for %d states\n", busSize, statesQuantity);
+    fprintf (output, "\n\n");
+    fprintf (output, "reg [%d:0] last_state;\n", busSize-1);
     
     /* | Every bit of this bus has positive edge on next
      * | clk's positive edge after positive edge 
@@ -83,7 +96,8 @@ bool Generator::GenerateVariablesInitialisation (FILE* output)
     fprintf (output, "\n\n");
     fprintf (output, "initial\n"
                      "begin\n"
-                     "        state <= 0;\n"
+                     "        state           <= 0;\n"
+                     "        last_state      <= 0;\n"
                      "        previous_inputs <= 0;\n"
                      "end\n\n");
     
@@ -140,21 +154,26 @@ bool Generator::GenerateTransitionBlock(FILE* output)
                     if (inputNumber != conditionalTransits[state][conditionNumber].condition.subConditions.size() - 1) 
                     {
                         if (dump) printf ("%d, ", conditionalTransits[state][conditionNumber].condition.subConditions[inputNumber]);
-                        fprintf (output, "posedge_inputs [%d], ", 
+                        fprintf (output, "posedge_inputs [%d] && ", 
                                 conditionalTransits[state][conditionNumber].condition.subConditions[inputNumber]);
                     }
                     else 
                     {
                         if (dump) printf ("%d", conditionalTransits[state][conditionNumber].condition.subConditions[inputNumber]);
                         fprintf (output, "posedge_inputs [%d]", 
-                                conditionalTransits[state][conditionNumber].condition.subConditions[inputNumber]);
+                                 conditionalTransits[state][conditionNumber].condition.subConditions[inputNumber]);
                     }
                 }
+                
                 fprintf (output, ") ");
             }
                 
             if (dump) printf (".\n");
-            fprintf (output, "state = %d;\n", conditionalTransits[state][conditionNumber].action);
+            fprintf (output, "\n"
+                             "                begin\n"
+                             "                        last_state <= state;\n"
+                             "                        state = %d;\n"
+                             "                end\n", conditionalTransits[state][conditionNumber].action);
         }
         
         fprintf (output, "            end\n");
@@ -183,6 +202,7 @@ bool Generator::GenerateOutputAlwaysBlock(FILE* output)
             if (dump) printf ("            Generating output case on state %d with conditions ", state);
             
             fprintf (output, "                ");
+            
             if (conditionalOutputs[state][conditionNumber].condition.subConditions.size() != 0)
             {
                 fprintf (output, "if (");
@@ -193,7 +213,7 @@ bool Generator::GenerateOutputAlwaysBlock(FILE* output)
                     if (inputNumber != conditionalOutputs[state][conditionNumber].condition.subConditions.size() - 1) 
                     {
                         if (dump) printf ("%d, ", conditionalOutputs[state][conditionNumber].condition.subConditions[inputNumber]);
-                        fprintf (output, "posedge_inputs [%d], ", 
+                        fprintf (output, "posedge_inputs [%d] && ", 
                                 conditionalOutputs[state][conditionNumber].condition.subConditions[inputNumber]);
                     }
                     else 
@@ -201,23 +221,29 @@ bool Generator::GenerateOutputAlwaysBlock(FILE* output)
                         if (dump) printf ("%d", conditionalOutputs[state][conditionNumber].condition.subConditions[inputNumber]);
                         fprintf (output, "posedge_inputs [%d]", 
                                 conditionalOutputs[state][conditionNumber].condition.subConditions[inputNumber]);
-                    }
+                    }                
+                }
                 
+                if (conditionalOutputs[state][conditionNumber].condition.onState)
+                {
+                    if (dump) printf (", last_state == %d", conditionalOutputs[state][conditionNumber].condition.transitionState);
+                    fprintf (output, " && last_state == %d", conditionalOutputs[state][conditionNumber].condition.transitionState);
                 }
                 
                 fprintf (output, ") ");
             }
             
             if (conditionalOutputs[state][conditionNumber].actionType == ActionType::allSignalsStopping)
-                fprintf (output, "outputs = 0;");
+                fprintf (output, "outputs <= 0;");
             else
             if (conditionalOutputs[state][conditionNumber].actionType == ActionType::signalStopping)
-                fprintf (output, "outputs [%d] = 0;", conditionalOutputs[state][conditionNumber].action);
+                fprintf (output, "outputs [%d] <= 0;", conditionalOutputs[state][conditionNumber].action);
             else
             if (conditionalOutputs[state][conditionNumber].actionType == ActionType::signalEmitting)
-                fprintf (output, "outputs [%d] = 1;", conditionalOutputs[state][conditionNumber].action);
+                fprintf (output, "outputs [%d] <= 1;", conditionalOutputs[state][conditionNumber].action);
             
             fprintf (output, "\n");
+            if (dump) printf ("\n");
             
         }
         fprintf (output, "            end\n");

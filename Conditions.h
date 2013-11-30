@@ -17,11 +17,14 @@ class Condition
 {
     public:
     std::vector <int> subConditions;
+    bool              onState;
+    int               transitionState;
     
-                Condition ();
-    void        PushSubCondition (int input);
-    int         PopSubCondition  ();
-    void        DumpCondition ();
+                Condition          ();
+    void        PushSubCondition   (int input);
+    bool        PushStateCondition (int state);
+    int         PopSubCondition    ();
+    void        DumpCondition      ();
 };
 
 class ConditionalAction

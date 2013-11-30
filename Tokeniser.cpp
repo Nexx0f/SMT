@@ -5,7 +5,10 @@
 Tokeniser::Tokeniser()
 {
     dump = false;
- 
+    
+    /*                |    Token type     |      TokenSubtype       |   Token name      | Token keyword |
+     *                |                   |                         | (for clear dump)  | for parser    |*/
+    
     keysData.pushKey ({TokenType::keyword, TokenSubtype::states,       "States",         "states"});
     keysData.pushKey ({TokenType::keyword, TokenSubtype::inputs,       "Inputs",         "inputs"});
     keysData.pushKey ({TokenType::keyword, TokenSubtype::outputs,      "Outputs",        "outputs"});
@@ -16,6 +19,10 @@ Tokeniser::Tokeniser()
     keysData.pushKey ({TokenType::keyword, TokenSubtype::transitto,    "Transitto",      "transitto"});
     keysData.pushKey ({TokenType::keyword, TokenSubtype::stopSignal,   "StopSignal",     "stopsignal"});
     keysData.pushKey ({TokenType::keyword, TokenSubtype::stopSignals,  "StopSignals",    "stopsignals"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::transition,   "Transition",     "transition"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::on,           "On",             "on"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::to,           "To",             "to"});
+    keysData.pushKey ({TokenType::keyword, TokenSubtype::tokenDo,      "Do",             "do"});
     
     keysData.pushKey ({TokenType::divider, TokenSubtype::comma,        "Comma",          ","});
     keysData.pushKey ({TokenType::divider, TokenSubtype::start,        "Start of block", "{"});
