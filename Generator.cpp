@@ -8,7 +8,7 @@
  *           conditional action (<do> block) have to be lower than others.
  *           Or in some cases generated code will be incorrect */
 
-/* TODO (2): if's cases have do be checed with all burned inputs 
+/* TODO (2): if's cases have do be check3ed with all burned inputs 
  *           and posedge of any burned input or negedge of any input */
 
 /* TODO (3): Parse multiple conditions */
@@ -41,6 +41,9 @@ bool Generator::Generate (FILE* output)
     
     if (dump) printf ("Generating output always block... \n");
     GenerateOutputAlwaysBlock (output);
+    
+    fprintf (output, "\n"
+                     "endmodule");
 }
 
 bool Generator::GenerateDeclaration (FILE* output)
@@ -82,6 +85,13 @@ bool Generator::GenerateVariablesInitialisation (FILE* output)
     if (dump) printf ("    <posedge_inputs> bus size is %d\n", inputsQuantity);
     fprintf (output, "wire [%d:0] posedge_inputs;\n", inputsQuantity-1);
     
+    /* | Every bit of this bus has positive edge on next
+     * | clk's positive edge after negative edge 
+     * v of corresponding bit of <inputs> */
+    
+    if (dump) printf ("    <negedge_inputs> bus size is %d\n", inputsQuantity);
+    fprintf (output, "wire [%d:0] negedge_inputs;\n", inputsQuantity-1);
+    
     /* |  This is bus that saves value of 
      * |  <inputs> on last clk positive edge. 
      * v  I need this to detect positive edge of <inputs> */
@@ -108,6 +118,17 @@ bool Generator::GenerateVariablesInitialisation (FILE* output)
     {
         if (dump) printf ("    Assigning <posedge_inputs[%d]> = ~<previous_inputs[%d] && inputs[%d]\n", i, i, i);
         fprintf (output, "assign posedge_inputs[%d] = ~previous_inputs[%d] && inputs[%d];\n", i, i, i);
+    }
+    
+    /* | Now all <negedge_inputs> wires have to be assigned
+     * v to some function of <previous_inputs> and <inputs> */
+    
+    if (dump) printf ("\n");
+    fprintf (output, "\n");
+    for (int i = 0; i < inputsQuantity; i++)
+    {
+        if (dump) printf ("    Assigning <negedge_inputs[%d]> = <previous_inputs[%d] && ~inputs[%d]\n", i, i, i);
+        fprintf (output, "assign negedge_inputs[%d] = previous_inputs[%d] && ~inputs[%d];\n", i, i, i);
     }
 }
 
@@ -147,25 +168,48 @@ bool Generator::GenerateTransitionBlock(FILE* output)
             if (conditionalTransits[state][conditionNumber].condition.subConditions.size() != 0)
             {
                 fprintf (output, "                if (");
+                
+                /* First condition is all needed conditional inputs in burning */
+                
+                fprintf (output, "(");
                 for (int inputNumber = 0; 
-                    inputNumber < conditionalTransits[state][conditionNumber].condition.subConditions.size(); 
-                    inputNumber++)
+                     inputNumber < conditionalTransits[state][conditionNumber].condition.subConditions.size(); 
+                     inputNumber++)
                 {
                     if (inputNumber != conditionalTransits[state][conditionNumber].condition.subConditions.size() - 1) 
                     {
                         if (dump) printf ("%d, ", conditionalTransits[state][conditionNumber].condition.subConditions[inputNumber]);
-                        fprintf (output, "posedge_inputs [%d] && ", 
+                        fprintf (output, "inputs [%d] && ", 
                                 conditionalTransits[state][conditionNumber].condition.subConditions[inputNumber]);
                     }
                     else 
                     {
                         if (dump) printf ("%d", conditionalTransits[state][conditionNumber].condition.subConditions[inputNumber]);
-                        fprintf (output, "posedge_inputs [%d]", 
+                        fprintf (output, "inputs [%d]", 
                                  conditionalTransits[state][conditionNumber].condition.subConditions[inputNumber]);
                     }
                 }
-                
                 fprintf (output, ") ");
+                
+                /* Second block is any posedge conditional or any negedge not conditional */
+            
+                fprintf (output, "&&\n"
+                                 "                    (");
+                for (int inputNumber = 0; inputNumber < inputsQuantity; inputNumber++)
+                {
+                    bool conditional = false;
+                    for (int i = 0; i < conditionalTransits[state][conditionNumber].condition.subConditions.size(); i++)
+                          if (inputNumber == conditionalTransits[state][conditionNumber].condition.subConditions[i])
+                              conditional = true;
+                          
+                    if (conditional) 
+                         fprintf (output, "posedge_inputs [%d]", inputNumber);
+                    else fprintf (output, "negedge_inputs [%d]", inputNumber);
+                    
+                    if (inputNumber != inputsQuantity-1)
+                         fprintf (output, " || ");
+                }
+                fprintf (output, "))");
             }
                 
             if (dump) printf (".\n");
@@ -178,7 +222,8 @@ bool Generator::GenerateTransitionBlock(FILE* output)
         
         fprintf (output, "            end\n");
     }
-    
+    fprintf (output, "        endcase\n");
+        
     if (dump) printf ("Closing always block for <posedge clk> (transition always block)\n");
     fprintf (output, "end\n");
     
@@ -190,6 +235,12 @@ bool Generator::GenerateOutputAlwaysBlock(FILE* output)
     fprintf (output,  "\n");
     fprintf (output,  "always @(state)\n"
                       "begin\n");
+    
+    /* | Now we have to generate output
+    * v cases depending of state */
+    
+    if (dump) printf ("    Generating <state> cases\n");
+    fprintf (output, "        case (state)\n");    
     
     for (int state = 0; state < conditionalOutputs.size(); state++)
     {
@@ -206,6 +257,11 @@ bool Generator::GenerateOutputAlwaysBlock(FILE* output)
             if (conditionalOutputs[state][conditionNumber].condition.subConditions.size() != 0)
             {
                 fprintf (output, "if (");
+                
+                /* First conditional block contains checking of all need inputs 
+                 * are burned and checking of last state if this is transitional conditional action */
+                
+                fprintf (output, "(");
                 for (int inputNumber = 0; 
                     inputNumber < conditionalOutputs[state][conditionNumber].condition.subConditions.size(); 
                     inputNumber++)
@@ -213,13 +269,13 @@ bool Generator::GenerateOutputAlwaysBlock(FILE* output)
                     if (inputNumber != conditionalOutputs[state][conditionNumber].condition.subConditions.size() - 1) 
                     {
                         if (dump) printf ("%d, ", conditionalOutputs[state][conditionNumber].condition.subConditions[inputNumber]);
-                        fprintf (output, "posedge_inputs [%d] && ", 
+                        fprintf (output, "inputs [%d] && ", 
                                 conditionalOutputs[state][conditionNumber].condition.subConditions[inputNumber]);
                     }
                     else 
                     {
                         if (dump) printf ("%d", conditionalOutputs[state][conditionNumber].condition.subConditions[inputNumber]);
-                        fprintf (output, "posedge_inputs [%d]", 
+                        fprintf (output, "inputs [%d]", 
                                 conditionalOutputs[state][conditionNumber].condition.subConditions[inputNumber]);
                     }                
                 }
@@ -231,10 +287,36 @@ bool Generator::GenerateOutputAlwaysBlock(FILE* output)
                 }
                 
                 fprintf (output, ") ");
+                
+                /* Second block is any posedge conditional or any negedge not conditional */
+            
+                fprintf (output, "&&\n"
+                                 "                    (");
+                for (int inputNumber = 0; inputNumber < inputsQuantity; inputNumber++)
+                {
+                    bool conditional = false;
+                    for (int i = 0; i < conditionalOutputs[state][conditionNumber].condition.subConditions.size(); i++)
+                          if (inputNumber == conditionalOutputs[state][conditionNumber].condition.subConditions[i])
+                              conditional = true;
+                          
+                    if (conditional) 
+                         fprintf (output, "posedge_inputs [%d]", inputNumber);
+                    else fprintf (output, "negedge_inputs [%d]", inputNumber);
+                    
+                    if (inputNumber != inputsQuantity-1)
+                         fprintf (output, " || ");
+                }
+                fprintf (output, ")) ");
             }
             
             if (conditionalOutputs[state][conditionNumber].actionType == ActionType::allSignalsStopping)
-                fprintf (output, "outputs <= 0;");
+            {
+                fprintf (output, "\n"
+                         "                begin\n");
+                for (int i = 0; i < outputsQuantity; i++)
+                     fprintf (output, "                    outputs [%d] <= 0;\n", i);
+                fprintf (output, "                end\n");
+            }
             else
             if (conditionalOutputs[state][conditionNumber].actionType == ActionType::signalStopping)
                 fprintf (output, "outputs [%d] <= 0;", conditionalOutputs[state][conditionNumber].action);
@@ -248,6 +330,8 @@ bool Generator::GenerateOutputAlwaysBlock(FILE* output)
         }
         fprintf (output, "            end\n");
     }
+    
+    fprintf (output, "        endcase\n");
     
     if (dump) printf ("Closing always block for <state> changing (output always block)\n");
     fprintf (output, "end\n");
