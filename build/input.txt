@@ -1,0 +1,33 @@
+states  {off, green, yellow, red}
+inputs  {newState, reset, unlock}
+outputs {greenLight, yellowLight, redLight}
+
+switch
+{	
+	state off
+	{
+		stopsignals;
+		transition on (unlock, newState) to green do {}
+	}
+	state green
+	{
+		stopsignals;
+		emitsignal greenLight;
+		transition on (unlock, newState) to yellow do {}
+		transition on (unlock, reset)    to off    do {}
+	}
+	state yellow
+	{
+		stopsignals;
+		emitsignal yellowLight;
+		transition on (unlock, newState) to red do {}
+		transition on (unlock, reset)    to off do {}
+	}
+	state red
+	{
+		stopsignals;
+		emitsignal redLight;
+		transition on (unlock, newState) to green do {}
+		transition on (unlock, reset)    to off   do {}
+	}
+}
