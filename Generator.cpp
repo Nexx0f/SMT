@@ -311,11 +311,20 @@ bool Generator::GenerateOutputAlwaysBlock(FILE* output)
             
             if (conditionalOutputs[state][conditionNumber].actionType == ActionType::allSignalsStopping)
             {
-                fprintf (output, "\n"
-                         "                begin\n");
+                fprintf (output, "\n");
+                if (conditionalOutputs[state][conditionNumber].condition.subConditions.size() != 0) 
+                    fprintf (output, "                begin\n");
+                
                 for (int i = 0; i < outputsQuantity; i++)
-                     fprintf (output, "                    outputs [%d] <= 0;\n", i);
-                fprintf (output, "                end\n");
+                {
+                     if (conditionalOutputs[state][conditionNumber].condition.subConditions.size() != 0)
+                          fprintf (output, "                    outputs [%d] <= 0;\n", i);
+                     else fprintf (output, "                outputs [%d] <= 0;\n", i);
+                }
+                
+                if (conditionalOutputs[state][conditionNumber].condition.subConditions.size() != 0) 
+                     fprintf (output, "                end\n");
+                fprintf (output, "\n");
             }
             else
             if (conditionalOutputs[state][conditionNumber].actionType == ActionType::signalStopping)

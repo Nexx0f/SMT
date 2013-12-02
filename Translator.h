@@ -33,6 +33,7 @@ class Translator
     bool SortConditionalOutputs ();
     
     bool ReadList               (const char* only, const char* multiple, std::vector <std::string>* list);
+    bool ReadConditionsList     (Condition* condition, int stateNumber, int deep);
     
     bool States                 ();
     bool Inputs                 ();

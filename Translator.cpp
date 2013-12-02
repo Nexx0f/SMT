@@ -296,6 +296,31 @@ bool Translator::State (Condition condition, int deep)
     return true;
 }
 
+bool Translator::ReadConditionsList(Condition* condition, int stateNumber, int deep)
+{
+    while (true)
+    {
+        if (!CheckName (tokeniser -> tokensBuffer [currentToken], "input", &inputs))
+            return false;
+    
+        int inputNumber = -1;
+        for (int i = 0; i < inputs.size(); i++)
+             if (tokeniser -> tokensBuffer [currentToken] -> name == inputs [i])
+             {
+                 inputNumber = i;
+                 break;
+             }
+             
+        condition -> PushSubCondition (inputNumber);
+        currentToken++;
+        
+        if (CheckCurrentToken (TokenType::divider, TokenSubtype::comma)) currentToken++;
+        else
+        if (CheckCurrentToken (TokenType::divider, TokenSubtype::rightBracket)) break;
+        else return ParsingError ("',', ')'");
+    }
+}
+
 bool Translator::IfBlock(Condition condition, int stateNumber, int deep)
 {
     currentToken++;
@@ -303,20 +328,8 @@ bool Translator::IfBlock(Condition condition, int stateNumber, int deep)
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::leftBracket)) currentToken++;
     else return ParsingError ("(");
     
-    if (!CheckName (tokeniser -> tokensBuffer [currentToken], "input", &inputs))
-        return false;
+    ReadConditionsList (&condition, stateNumber, deep+4);
     
-    int inputNumber = -1;
-    for (int i = 0; i < inputs.size(); i++)
-         if (tokeniser -> tokensBuffer [currentToken] -> name == inputs [i])
-         {
-             inputNumber = i;
-             break;
-         }
-             
-    condition.PushSubCondition (inputNumber);
-    currentToken++;
-
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::rightBracket)) currentToken++;
     else return ParsingError (")");
     
@@ -477,20 +490,8 @@ bool Translator::Transition(Condition condition, int stateNumber, int deep)
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::leftBracket)) currentToken++;
     else return ParsingError ("(");
     
-    if (!CheckName (tokeniser -> tokensBuffer [currentToken], "input", &inputs))
-        return false;
+    ReadConditionsList (&condition, stateNumber, deep+4);
     
-    int inputNumber = -1;
-    for (int i = 0; i < inputs.size(); i++)
-         if (tokeniser -> tokensBuffer [currentToken] -> name == inputs [i])
-         {
-             inputNumber = i;
-             break;
-         }
-    
-    condition.PushSubCondition (inputNumber);
-    currentToken++;
-
     if (CheckCurrentToken (TokenType::divider, TokenSubtype::rightBracket)) currentToken++;
     else return ParsingError (")");
     
